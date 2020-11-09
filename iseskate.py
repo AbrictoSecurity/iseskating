@@ -54,7 +54,7 @@ def iptables_del():
 
 # Change MAC and add routes
 def mac_route(mac):
-    macs = "macchanger --mac=" + mac + " eth0"
+    macs = "ifconfig eth0 down; macchanger --mac=" + mac + " eth0; ifconfig eth0 up"
     subprocess.call(macs, shell=True)
 
 
@@ -133,7 +133,7 @@ def ip_capture(mac):
         collect_ip = "tcpdump -i eth0  -c 10 ether src " + mac + " -n  > " + ipf + "tcp.txt"
         subprocess.call(collect_ip, shell=True)
 
-        clean_ip = "cat " + ipf + "tcp.txt | grep ' IP ' | cut -d '.' -f 2,3,4,5 | cut -d ' ' -f 3 | uniq >" + ipf + "hostip.txt "
+        clean_ip = "cat " + ipf + "tcp.txt | grep ' IP ' | egrep -v '0.0.0.0' | cut -d '.' -f 2,3,4,5 | cut -d ' ' -f 3 | uniq >" + ipf + "hostip.txt "
         subprocess.call(clean_ip, shell=True)
 
         if os.stat(ipf + "hostip.txt").st_size != 0:
@@ -230,8 +230,6 @@ def main():
 
                             check = open(eapf + ".time", "r")
                             lines = [i for i in check.readlines() if len(i) > 0]
-                            print(control)
-                            print(lines)
                             if len(lines) != control:
                                 clean = "rm " + eapf + ".eap.txt"
                                 subprocess.call(clean, shell=True)
