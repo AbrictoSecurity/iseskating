@@ -8,7 +8,7 @@ ISE Skating is the process of riding IEEE 802.1X authentication. This repository
 ## Setup 
 ```
 sudo apt update 
-sudo apt install python3-pip nmap -y
+sudo apt install python3-pip nmap tcpdump -y
 sudo pip3 install python-nmap
 cd /opt/ && sudo git clone https://github.com/AbrictoSecurity/iseskating.git
 ```
