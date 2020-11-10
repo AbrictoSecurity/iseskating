@@ -1,13 +1,11 @@
 [Unit]
-Description=My service
+Description=ISE Skating NAC Bypass
 After=network.target
 
 [Service]
+Type=oneshot
 ExecStart=/usr/bin/python3 -u iseskate.py
 WorkingDirectory=/opt/iseskating
-StandardOutput=inherit
-StandardError=inherit
-Restart=always
 User=root
 
 [Install]
