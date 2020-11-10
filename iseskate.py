@@ -248,15 +248,16 @@ def main():
                             eap_check()
                             time_file = "cat " + eapf + ".eap.txt | cut -d ' ' -f 1,2 | cut -d ':' -f 1,2,3 | egrep -v 'Type' | uniq > " + eapf + ".time"
                             subprocess.call(time_file, shell=True)
-
                             checkfile = open(eapf + ".eapcheck.txt", "r")
                             if 'Failure' in checkfile.read():
                                 start_over == "5"
+                                print("Recieved a EAP failure!")
                                 break
 
                             check = open(eapf + ".time", "r")
                             lines = [i for i in check.readlines() if len(i) > 0]
                             if len(lines) != control:
+                                print("Control and check do not match")
                                 clean = "rm " + eapf + ".eap.txt"
                                 subprocess.call(clean, shell=True)
                                 clean1 = "rm " + eapf + ".t_time"
